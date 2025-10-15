@@ -1,0 +1,212 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import unicodedata
+# ----- Estilo global -----
+plt.rcParams.update({
+    "figure.dpi": 150,
+    "savefig.dpi": 150,
+    "font.size": 9,
+    "font.family": "DejaVu Sans"  # Cambia aquí la fuente si prefieres otra
+})
+
+# ---------------------------
+# Datos de los jugadores
+# ---------------------------
+players = {
+    "Cristhian Mosquera": {
+        "Passes Completion %": 90.9, "Passes Completion (Percentile)": 83,
+        "Progressive Passes x90": 3.05, "Prog Passes (Percentile)": 43,
+        "Progressive Carries x90": 0.82, "Prog Carries (Percentile)": 71,
+        "Tackles x90": 1.85, "Tackles (Percentile)": 78,
+        "Interceptions x90": 0.97, "Interceptions (Percentile)": 40,
+        "Aerial won x90": 1.10, "Aerial (Percentile)": 8,
+        "Def Duels Won %": 64.3, "Def Duels (Percentile)": 98,
+    },
+    "Gabriel Magalhães": {
+        "Passes Completion %": 90.0, "Passes Completion (Percentile)": 75,
+        "Progressive Passes x90": 4.83, "Prog Passes (Percentile)": 85,
+        "Progressive Carries x90": 0.49, "Prog Carries (Percentile)": 39,
+        "Tackles x90": 1.03, "Tackles (Percentile)": 14,
+        "Interceptions x90": 0.71, "Interceptions (Percentile)": 12,
+        "Aerial won x90": 2.37, "Aerial (Percentile)": 67,
+        "Def Duels Won %": 65.0, "Def Duels (Percentile)": 98,
+    },
+    "William Saliba": {
+        "Passes Completion %": 93.7, "Passes Completion (Percentile)": 98,
+        "Progressive Passes x90": 3.97, "Prog Passes (Percentile)": 67,
+        "Progressive Carries x90": 0.44, "Prog Carries (Percentile)": 33,
+        "Tackles x90": 1.53, "Tackles (Percentile)": 56,
+        "Interceptions x90": 0.70, "Interceptions (Percentile)": 10,
+        "Aerial won x90": 2.08, "Aerial (Percentile)": 52,
+        "Def Duels Won %": 67.5, "Def Duels (Percentile)": 99,
+    },
+}
+
+df = pd.DataFrame(players).T.reset_index().rename(columns={"index": "Player"})
+
+# ---------------------------
+# Función para tablas estilo "card"
+# ---------------------------
+def render_table(ax, name, pdata):
+    ax.axis("off")
+    ax.set_title(name, fontsize=8, fontweight="bold", pad=15)
+    rows = [
+        ("Passes Completed", f'{pdata["Passes Completion %"]:.1f}%  ({int(pdata["Passes Completion (Percentile)"])}th Percentile)'),
+        ("Prog Casses", f'{pdata["Progressive Passes x90"]:.2f} x90  ({int(pdata["Prog Passes (Percentile)"])}th Percentile)'),
+        ("Prog Carries", f'{pdata["Progressive Carries x90"]:.2f} x90  ({int(pdata["Prog Carries (Percentile)"])}th Percentile)'),
+        ("Tackles", f'{pdata["Tackles x90"]:.2f} x90  ({int(pdata["Tackles (Percentile)"])}th Percentile)'),
+        ("Interceptions", f'{pdata["Interceptions x90"]:.2f} x90  ({int(pdata["Interceptions (Percentile)"])}th Percentile)'),
+        ("Aerial Won", f'{pdata["Aerial won x90"]:.2f} x90  ({int(pdata["Aerial (Percentile)"])}th Percentile)'),
+        ("Def Duels won %", f'{pdata["Def Duels Won %"]:.1f}%  ({int(pdata["Def Duels (Percentile)"])}th Percentile)'),
+    ]
+    tab = pd.DataFrame(rows, columns=["Metric", name])
+    tbl = ax.table(cellText=[tab.columns.tolist()] + tab.values.tolist(),
+                   loc="upper left", cellLoc="left", colWidths=[0.52, 0.77])
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(6.5)
+    tbl.scale(1, 1.35)
+    for (r, c), cell in tbl.get_celld().items():
+        cell.set_edgecolor("#e6e6e6")
+        cell.set_facecolor("white")
+        if r == 0:
+            cell.set_text_props(fontweight="bold")
+
+# ---------------------------
+# Radar (8 ejes, colores personalizados y leyenda visible)
+# ---------------------------
+def norm_name(s: str) -> str:
+    # Normaliza: minúsculas, sin acentos, sin espacios extremos
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
+
+radar_labels = [
+    ("Aerial (Percentile)", "Aerial"),
+    ("Prog Carries (Percentile)", "Prog Carries"),
+    ("Passes Completion %", "Pass %"),
+    ("Passes Completion (Percentile)", "Pass Percentile"),
+    ("Prog Passes (Percentile)", "Prog passes"),
+    ("Tackles (Percentile)", "Tackles"),
+    ("Interceptions (Percentile)", "Interceptions"),
+    ("Def Duels (Percentile)", "Def duels"),
+]
+angles = np.linspace(0, 2*np.pi, len(radar_labels), endpoint=False).tolist()
+angles += angles[:1]
+
+def vals_radar(row):
+    v = [
+        row["Aerial (Percentile)"],
+        row["Prog Carries (Percentile)"],
+        row["Passes Completion %"],
+        row["Passes Completion (Percentile)"],
+        row["Prog Passes (Percentile)"],
+        row["Tackles (Percentile)"],
+        row["Interceptions (Percentile)"],
+        row["Def Duels (Percentile)"],
+    ]
+    v += v[:1]
+    return v
+
+# Colores mejorados
+colors_by_name = {
+    norm_name("Cristian Mosquera"): "#000000",
+    norm_name("Gabriel Magalhães"): "#1565C3",
+    norm_name("William Saliba"):    "#388E3C",
+}
+styles_by_name = {
+    norm_name("Cristian Mosquera"): {"lw": 3.0, "ls": "-",  "alpha": 0.25},
+    norm_name("Gabriel Magalhães"): {"lw": 1.8, "ls": "--", "alpha": 0.08},
+    norm_name("William Saliba"):    {"lw": 1.8, "ls": "--",  "alpha": 0.08},
+}
+
+# ---------------------------
+# Nubes de dispersión (para fondo)
+# ---------------------------
+rng = np.random.default_rng(101)
+league_def = rng.normal(60, 12, 800).clip(25, 95)
+league_aerial = rng.normal(1.1, 0.5, 800).clip(0, 3.5)
+league_prog_pass = rng.normal(1.7, 1.0, 800).clip(0, 6)
+league_prog_carry = rng.normal(1.5, 0.8, 800).clip(0, 4)
+
+# ---------------------------
+# Figura global
+# ---------------------------
+fig = plt.figure(figsize=(16, 11), facecolor="white")
+gs = fig.add_gridspec(3, 5, width_ratios=[1.5, 1, 1, 1, 0.2],
+                      height_ratios=[1.2, 1.3, 1.2],
+                      hspace=1.15, wspace=1.0)
+
+# Tablas
+ax_m = fig.add_subplot(gs[0, 0]); render_table(ax_m, "Cristhian Mosquera", players["Cristhian Mosquera"])
+ax_g = fig.add_subplot(gs[1, 0]); render_table(ax_g, "Gabriel Magalhães", players["Gabriel Magalhães"])
+ax_s = fig.add_subplot(gs[2, 0]); render_table(ax_s, "William Saliba", players["William Saliba"])
+
+# Radar con líneas y marcadores visibles
+ax_r = fig.add_subplot(gs[0, 1:4], polar=True)
+ax_r.set_title("Compare  Arsenal Centre-Backs (Percentiles / %)", fontsize=10, pad= 24)
+fig.subplots_adjust(top=0.82, right=0.80)
+ax_r.set_ylim(0, 100)
+ax_r.set_yticks([20, 40, 60, 80])
+ax_r.set_xticks(angles[:-1])
+ax_r.set_xticklabels([lab for _, lab in radar_labels], fontsize=7)
+
+for _, row in df.iterrows():
+    name= row["Player"]
+    key= norm_name(name)
+    c = colors_by_name.get(key)
+    s = styles_by_name.get(key, {"lw": 2, "ls": "-", "alpha": 0.10})
+    if c is None:
+        print(f"[AVISO] Sin color para '{name}'. Usando gris.")
+        c = "#444444"
+    vals = vals_radar(row)
+    ax_r.plot(
+        angles, vals,
+        c=c,               # << IMPORTANTE
+        linewidth=s["lw"],     # grosor
+        linestyle=s["ls"],     # estilo ("-", "--", ":")
+        marker="o", markersize=3,
+        label=name                 # << IMPORTANTE (para leyenda)
+    )
+    ax_r.fill(angles, vals, c=c, alpha=s["alpha"])
+
+handles, labels = ax_r.get_legend_handles_labels()
+ax_r.legend(
+    handles, labels,
+    loc="center left",
+    bbox_to_anchor=(1.35, 0.50),      # más a la derecha; baja/sube con el segundo valor
+    frameon=True, framealpha=0.95, facecolor="white",
+    fontsize=8
+)
+
+# Dispersión 1
+ax_s1 = fig.add_subplot(gs[1, 1:3])
+ax_s1.set_title("Aerial won x90 vs Defensive Duels won %", fontsize=11, pad=10)
+ax_s1.scatter(league_def, league_aerial, alpha=0.22, s=16)
+for _, r in df.iterrows():
+    c = colors.get(r["Player"], "black")
+    ax_s1.scatter(r["Def Duels Won %"], r["Aerial won x90"], s=40, color=c)
+    ax_s1.annotate(r["Player"].split()[0], (r["Def Duels Won %"], r["Aerial won x90"]),
+                   xytext=(7,7), textcoords="offset points", fontsize=8)
+ax_s1.axhline(np.mean(league_aerial), linestyle="--", linewidth=1)
+ax_s1.axvline(np.mean(league_def), linestyle="--", linewidth=1)
+ax_s1.set_xlabel("Defensive duels won (%)"); ax_s1.set_ylabel("Aerial won x90")
+
+# Dispersión 2
+ax_s2 = fig.add_subplot(gs[1, 3])
+ax_s2.set_title("Progressive Passes vs Carries (x90)", fontsize=11, pad=10)
+ax_s2.scatter(league_prog_carry, league_prog_pass, alpha=0.22, s=16)
+for _, r in df.iterrows():
+    c = colors.get(r["Player"], "black")
+    ax_s2.scatter(r["Progressive Carries x90"], r["Progressive Passes x90"], s=40, color=c)
+    ax_s2.annotate(r["Player"].split()[0], (r["Progressive Carries x90"], r["Progressive Passes x90"]),
+                   xytext=(7,7), textcoords="offset points", fontsize=8)
+ax_s2.axhline(np.mean(league_prog_pass), linestyle="--", linewidth=1)
+ax_s2.axvline(np.mean(league_prog_carry), linestyle="--", linewidth=1)
+ax_s2.set_xlabel("Prog carries x90"); ax_s2.set_ylabel("Prog passes x90")
+
+# Espacio vacío
+ax_empty = fig.add_subplot(gs[:, 4]); ax_empty.axis("off")
+
+plt.tight_layout()
+plt.savefig("arsenal_cb_dashboard_colored.png", bbox_inches="tight", facecolor="white")
+plt.show()
+print("Guardado como: arsenal_cb_dashboard_colored.png")
