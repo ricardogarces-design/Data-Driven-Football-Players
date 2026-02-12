@@ -36,8 +36,6 @@ The dataset includes player-level statistics such as:
 
 ---
 
-1759778456571.jpg
-
 ## 🛠️ Tools & Technologies
 
 - Python
